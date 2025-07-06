@@ -1,15 +1,26 @@
 <?php
-// Check if the form has been submitted
+require_once 'functions.php';
+require_once 'auth.php';
+require 'config.php';
+
+if (!isAdmin()) {
+    echo "<div class='alert alert-danger'>Access denied. Admins only.</div>";
+    exit;
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Call the addVideo function from functions.php
-    addVideo($_POST['title'], $_POST['director'], $_POST['release_year']);
-    // Display a success message
-    echo '<div class="alert alert-success alert-dismissible fade show" role="alert">
-            Video added successfully.
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-          </div>';
+    $title = $_POST['title'];
+    $director = $_POST['director'];
+    $release_year = $_POST['release_year'];
+    $stock = $_POST['stock'];
+
+    $stmt = $conn->prepare("INSERT INTO videos (title, director, release_year, stock) VALUES (?, ?, ?, ?)");
+    $stmt->bind_param("ssii", $title, $director, $release_year, $stock);
+    if ($stmt->execute()) {
+        echo '<div class="alert alert-success">Video added successfully.</div>';
+    } else {
+        echo '<div class="alert alert-danger">Error adding video.</div>';
+    }
 }
 ?>
 
@@ -21,15 +32,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <div class="card-body">
             <div class="form-group">
                 <label for="title">Title</label>
-                <input type="text" class="form-control" name="title" placeholder="Enter title" required>
+                <input type="text" class="form-control" name="title" required>
             </div>
             <div class="form-group">
                 <label for="director">Director</label>
-                <input type="text" class="form-control" name="director" placeholder="Enter director" required>
+                <input type="text" class="form-control" name="director" required>
             </div>
             <div class="form-group">
                 <label for="release_year">Release Year</label>
-                <input type="number" class="form-control" name="release_year" placeholder="Enter release year" required>
+                <input type="number" class="form-control" name="release_year" required>
+            </div>
+            <div class="form-group">
+                <label for="stock">Stock</label>
+                <input type="number" class="form-control" name="stock" min="1" required>
             </div>
         </div>
         <div class="card-footer">

@@ -1,28 +1,44 @@
 <?php
 session_start();
+require 'config.php';
 
-// Check if the user is already logged in
-if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
-    header('Location: index.php');
-    exit;
-}
-
+$error = '';
 $login_error = '';
+
 
 // Check if the form is submitted
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = $_POST['username'];
     $password = $_POST['password'];
 
+    $stmt = $conn ->prepare("SELECT * FROM users WHERE username = ?");
+    $stmt->bind_param("s", $username);
+    $stmt -> execute();
+    $res = $stmt -> get_result();
+
     // Hardcoded credentials
-    if ($username == 'admin' && $password == 'password123') {
-        $_SESSION['loggedin'] = true;
-        $_SESSION['username'] = $username;
+    if ($user = $res->fetch_assoc()) {
+    if (password_verify($password, $user['password'])) {
+        $_SESSION['user'] = $user['username'];
+        $_SESSION['role'] = $user['role'];
+        $_SESSION['user_id'] = $user['id']; // <-- CRITICAL for admin/customer role checking
         header('Location: index.php');
         exit;
     } else {
         $login_error = 'Incorrect username or password.';
     }
+}
+
+
+if ($user = $res->fetch_assoc()) {
+    if (password_verify($password, $user['password'])) {
+        $_SESSION['user'] = $user['username'];
+        $_SESSION['role'] = $user['role']; // Add this line
+        header('Location: index.php');
+        exit;
+    }
+}
+
 }
 ?>
 
