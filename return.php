@@ -16,24 +16,23 @@ if (!$video_id) {
     exit;
 }
 
-// Check if the user has rented this video
-if (!hasRented($video_id, $user_id)) {
-    echo "<div class='alert alert-danger'>You haven't rented this video.</div>";
+// Get the active rental ID for this user and video
+$stmt = $conn->prepare("SELECT id FROM rentals WHERE video_id = ? AND user_id = ? AND return_date IS NULL LIMIT 1");
+$stmt->bind_param("ii", $video_id, $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$rental = $result->fetch_assoc();
+
+if (!$rental) {
+    echo "<div class='alert alert-danger'>You haven't rented this video or it's already returned.</div>";
     exit;
 }
 
-// Return logic: delete from rentals and increase stock
-$stmt = $conn->prepare("DELETE FROM rentals WHERE video_id = ? AND user_id = ? LIMIT 1");
-$stmt->bind_param("ii", $video_id, $user_id);
+$rental_id = $rental['id'];
 
-if ($stmt->execute()) {
-    // Increase stock
-    $updateStock = $conn->prepare("UPDATE videos SET stock = stock + 1 WHERE id = ?");
-    $updateStock->bind_param("i", $video_id);
-    $updateStock->execute();
-
+if (returnVideo($rental_id)) {
     $_SESSION['alert'] = "Video returned successfully.";
-    header("Location: index.php?page=home");
+    header("Location: rental_history.php");
     exit;
 } else {
     echo "<div class='alert alert-danger'>Failed to return video.</div>";

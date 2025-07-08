@@ -2,29 +2,30 @@
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
-require_once 'functions.php'; // Assumes this contains functions like getVideoById() and deleteVideo()
 
-// Function to set session alerts
+require_once 'functions.php';
+
 function setAlert($message, $type = 'success') {
     $_SESSION['alert'] = ['message' => $message, 'type' => $type];
 }
 
-// Check if a valid video ID is passed and deletion has not yet been confirmed
 if (isset($_GET['id']) && !isset($_GET['confirm'])) {
     $videoId = htmlspecialchars($_GET['id']);
-    $video = getVideoById($videoId); // Retrieve video details
+    $video = getVideoById($videoId);
 
-    if ($video) {
-     //   include 'header.php'; // Include your header file
+    if ($video):
 ?>
         <div class="container mt-3">
             <h1>Delete Video</h1>
             <p>Are you sure you want to delete this video?</p>
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Title: <?= htmlspecialchars($video['title']) ?></h5>
-                    <p class="card-text">Director: <?= htmlspecialchars($video['director']) ?></p>
-                    <p class="card-text">Release Year: <?= htmlspecialchars($video['release_year']) ?></p>
+                    <p><strong>Title:</strong> <?= htmlspecialchars($video['title']) ?></p>
+                    <p><strong>Book ID:</strong> <?= htmlspecialchars($video['book_id']) ?></p>
+                    <p><strong>Director:</strong> <?= htmlspecialchars($video['director']) ?></p>
+                    <p><strong>Published On:</strong> 
+                        <?= isset($video['release_date']) ? date("F d, Y", strtotime($video['release_date'])) : 'N/A' ?>
+                    </p>
                 </div>
             </div>
             <div>
@@ -33,23 +34,22 @@ if (isset($_GET['id']) && !isset($_GET['confirm'])) {
             </div>
         </div>
 <?php
-    //    include 'footer.php'; // Include your footer file
-    } else {
+    else:
         setAlert("Video not found.", "danger");
         header('Location: index.php?page=view');
         exit();
-    }
-} elseif (isset($_GET['confirm']) && $_GET['confirm'] == 'yes' && isset($_GET['id'])) {
-    // Confirm deletion
+    endif;
+
+} elseif (isset($_GET['confirm']) && $_GET['confirm'] === 'yes' && isset($_GET['id'])) {
     if (deleteVideo($_GET['id'])) {
         setAlert('Video deleted successfully.', 'success');
     } else {
         setAlert('Failed to delete video. Video not found.', 'danger');
     }
-    header('Location: index.php?page=view'); // Redirect to the video list page
+    header('Location: index.php?page=view');
     exit();
+
 } else {
-    // No ID was provided
     setAlert('No video ID specified.', 'danger');
     header('Location: index.php?page=view');
     exit();

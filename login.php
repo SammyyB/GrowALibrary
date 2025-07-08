@@ -30,15 +30,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 
-if ($user = $res->fetch_assoc()) {
-    if (password_verify($password, $user['password'])) {
-        $_SESSION['user'] = $user['username'];
-        $_SESSION['role'] = $user['role']; // Add this line
-        header('Location: index.php');
-        exit;
-    }
-}
-
 }
 ?>
 

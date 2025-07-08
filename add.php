@@ -10,28 +10,29 @@ if (!isAdmin()) {
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $title = $_POST['title'];
-    $publish_date = $_POST['release_date'];
+    $release_date = $_POST['release_date'];
     $category = $_POST['category'];
     $status = $_POST['status'];
     $director = $_POST['director'];
-    $release_year = $_POST['release_year'];
     $stock = $_POST['stock'];
+
+    $release_year = date("Y", strtotime($release_date));
 
     // Generate Book ID: e.g. THFEB102022-FIC00001
     $firstLetters = strtoupper(substr($title, 0, 2));
-    $month = strtoupper(date("M", strtotime($publish_date)));
+    $month = strtoupper(date("M", strtotime($release_date)));
     $day = date("d");
-    $year = date("Y", strtotime($publish_date));
+    $year = date("Y", strtotime($release_date));
     $categoryCode = strtoupper(substr($category, 0, 3));
 
     $result = $conn->query("SELECT COUNT(*) as count FROM videos");
     $count = $result->fetch_assoc()['count'] + 1;
     $bookId = "{$firstLetters}{$month}{$day}{$year}-{$categoryCode}" . str_pad($count, 5, "0", STR_PAD_LEFT);
 
-    // Insert new video
-    $stmt = $conn->prepare("INSERT INTO videos (book_id, title, director, release_year, stock, category, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssssiss", $bookId, $title, $director, $release_year, $stock, $category, $status);
-    
+    // Insert new video/book with release_date
+    $stmt = $conn->prepare("INSERT INTO videos (book_id, title, director, release_year, release_date, stock, category, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("sssssiss", $bookId, $title, $director, $release_year, $release_date, $stock, $category, $status);
+
     if ($stmt->execute()) {
         echo '<div class="alert alert-success">Book added successfully.</div>';
     } else {
@@ -53,10 +54,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <div class="form-group">
                 <label for="director">Author / Director</label>
                 <input type="text" class="form-control" name="director" required>
-            </div>
-            <div class="form-group">
-                <label for="release_year">Published Year</label>
-                <input type="number" class="form-control" name="release_year" required>
             </div>
             <div class="form-group">
                 <label for="release_date">Published Date</label>

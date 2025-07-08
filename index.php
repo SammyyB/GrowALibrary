@@ -22,6 +22,7 @@ $userId = $_SESSION['user_id'] ?? null;
     <title>Video Rental System</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2.0/dist/css/adminlte.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body class="hold-transition sidebar-mini">
 <div class="wrapper">
@@ -51,9 +52,9 @@ $userId = $_SESSION['user_id'] ?? null;
                         echo '<thead><tr>';
                         echo '<th>Title</th><th>Director</th><th>Release Year</th>';
                         if (isCustomer()) {
-                            echo '<th>Stock</th><th>Action</th><th>Renter</th>';
+                            echo '<th>Stock</th><th>Action</th><th>Book ID</th><th>Status</th>';
                         } else {
-                            echo '<th>Actions</th><th>Stock</th><th>Renter</th>';
+                            echo '<th>Actions</th><th>Stock</th><th>Book ID</th><th>Status</th>';
                         }
                         echo '</tr></thead><tbody>';
 
@@ -69,10 +70,10 @@ $userId = $_SESSION['user_id'] ?? null;
                                 echo '<td>';
                                 if (hasRented($video['id'], $userId)) {
                                     echo '<a href="return.php?id=' . $video['id'] . '" class="btn btn-warning btn-sm">Return</a>';
-                                } elseif ($video['stock'] > 0) {
+                                } elseif ($video['stock'] > 0 && $video['status'] !== 'archived') {
                                     echo '<a href="rent.php?id=' . $video['id'] . '" class="btn btn-success btn-sm">Rent</a>';
                                 } else {
-                                    echo '<span class="text-danger">Out of Stock</span>';
+                                    echo '<span class="text-danger">Unavailable</span>';
                                 }
                                 echo '</td>';
                             } else {
@@ -84,9 +85,15 @@ $userId = $_SESSION['user_id'] ?? null;
                                 echo '<td>' . htmlspecialchars($video['stock']) . '</td>';
                             }
 
-                            // Show renters
-                            $renters = getCurrentRenters($video['id']);
-                            echo '<td>' . implode(', ', array_map('htmlspecialchars', $renters)) . '</td>';
+                            echo '<td>' . htmlspecialchars($video['book_id']) . '</td>';
+
+                            if ($video['status'] === 'archived') {
+                                echo '<td><span class="badge bg-secondary">Archived</span></td>';
+                            } elseif ($video['stock'] <= 0) {
+                                echo '<td><span class="badge bg-danger">Out of Stock</span></td>';
+                            } else {
+                                echo '<td><span class="badge bg-success">Available</span></td>';
+                            }
 
                             echo '</tr>';
                         }
@@ -127,7 +134,6 @@ $userId = $_SESSION['user_id'] ?? null;
     </footer>
 </div>
 
-<!-- Scripts -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2.0/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2.0/dist/js/adminlte.min.js"></script>

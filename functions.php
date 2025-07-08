@@ -59,16 +59,24 @@ function deleteVideo($id) {
 function rentVideo($user_id, $video_id) {
     global $conn;
 
-    // Check stock
-    $video = getVideoById($video_id);
-    if (!$video || $video['stock'] <= 0) {
-        return false; // Not available
+    // Check number of active rentals
+    $stmtActive = $conn->prepare("SELECT COUNT(*) as active FROM rentals WHERE user_id = ? AND return_date IS NULL");
+    $stmtActive->bind_param("i", $user_id);
+    $stmtActive->execute();
+    $result = $stmtActive->get_result()->fetch_assoc();
+    if ($result['active'] >= 2) {
+        return false; // Cannot borrow more than 2 books
     }
 
-    // Rent it
+    // Check book status and stock
+    $video = getVideoById($video_id);
+    if (!$video || $video['stock'] <= 0 || strtolower($video['status']) === 'archived') {
+        return false;
+    }
+
     $conn->begin_transaction();
     try {
-        $stmt1 = $conn->prepare("INSERT INTO rentals (user_id, video_id) VALUES (?, ?)");
+        $stmt1 = $conn->prepare("INSERT INTO rentals (user_id, video_id, rent_date, due_date) VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY))");
         $stmt1->bind_param("ii", $user_id, $video_id);
         $stmt1->execute();
 
@@ -122,7 +130,7 @@ function returnVideo($rental_id) {
 function getRentalHistory($user_id) {
     global $conn;
     $stmt = $conn->prepare("
-        SELECT r.id, v.title, r.rent_date, r.return_date
+        SELECT r.id, v.title, r.rent_date, r.return_date, r.due_date
         FROM rentals r
         JOIN videos v ON r.video_id = v.id
         WHERE r.user_id = ?
@@ -133,6 +141,7 @@ function getRentalHistory($user_id) {
     $result = $stmt->get_result();
     return $result->fetch_all(MYSQLI_ASSOC);
 }
+
 
 function usernameExists($username) {
     global $conn;
@@ -208,5 +217,16 @@ function getCurrentRenters($video_id) {
 
     return $renters;
 }
+
+function calculateFine($due_date, $return_date = null) {
+    $due = new DateTime($due_date);
+    $end = $return_date ? new DateTime($return_date) : new DateTime();
+
+    $interval = $due->diff($end);
+    $daysLate = $interval->invert === 0 && $end > $due ? $interval->days : 0;
+
+    return $daysLate * 10; // ₱10 per day
+}
+
 
 ?>

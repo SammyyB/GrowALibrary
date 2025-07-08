@@ -1,4 +1,5 @@
 <?php
+session_start();
 require 'functions.php';
 
 if (!isset($_SESSION['user_id'])) {
@@ -59,35 +60,42 @@ $history = getRentalHistory($_SESSION['user_id']);
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Your Rental History</h2>
+<div class="container">
+    <h2>Your Rental History</h2>
 
-        <?php if (empty($history)): ?>
-            <p>You have no rental history yet.</p>
-        <?php else: ?>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Video Title</th>
-                        <th>Rented On</th>
-                        <th>Returned On</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($history as $entry): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($entry['title']) ?></td>
-                            <td><?= htmlspecialchars($entry['rent_date']) ?></td>
-                            <td><?= $entry['return_date'] ? htmlspecialchars($entry['return_date']) : '---' ?></td>
-                            <td class="<?= $entry['return_date'] ? 'returned' : 'not-returned' ?>">
-                                <?= $entry['return_date'] ? 'Returned' : 'Not Returned' ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php endif; ?>
-    </div>
+    <?php if (empty($history)): ?>
+        <p>You have no rental history yet.</p>
+    <?php else: ?>
+        <table>
+            <thead>
+                <tr>
+                    <th>Video Title</th>
+                    <th>Rented On</th>
+                    <th>Returned On</th>
+                    <th>Status</th>
+                    <th>Fine</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($history as $entry): 
+                    $fine = calculateFine($entry['due_date'] ?? null, $entry['return_date'] ?? null);
+                ?>
+                <tr>
+                    <td><?= htmlspecialchars($entry['title']) ?></td>
+                    <td><?= htmlspecialchars($entry['rent_date']) ?></td>
+                    <td><?= $entry['return_date'] ? htmlspecialchars($entry['return_date']) : '---' ?></td>
+                    <td class="<?= $entry['return_date'] ? 'returned' : 'not-returned' ?>">
+                        <?= $entry['return_date'] ? 'Returned' : 'Not Returned' ?>
+                    </td>
+                    <td>₱<?= $fine ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
+    <div style="text-align: center; margin-top: 30px;">
+    <a href="index.php" class="btn btn-primary" style="padding: 10px 20px; text-decoration: none; color: white; background-color: #007bff; border-radius: 5px;">Back to Home</a>
+</div>
+</div>
 </body>
 </html>

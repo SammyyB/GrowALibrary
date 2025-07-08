@@ -3,12 +3,12 @@ session_start();
 require 'functions.php';
 
 if (!isset($_SESSION['user_id']) || !isCustomer()) {
-    header("Location: index.php");
+    header("Location: login.php");
     exit;
 }
 
 if (!isset($_GET['id'])) {
-    $_SESSION['alert'] = "No video selected for rent.";
+    $_SESSION['alert'] = "No book selected for rent.";
     header("Location: index.php");
     exit;
 }
@@ -16,10 +16,25 @@ if (!isset($_GET['id'])) {
 $videoId = $_GET['id'];
 $userId = $_SESSION['user_id'];
 
-if (rentVideo($videoId, $userId)) {
-    $_SESSION['alert'] = "Video rented successfully!";
+// Already rented check
+if (hasRented($videoId, $userId)) {
+    $_SESSION['alert'] = "You already rented this book and haven't returned it yet.";
+    header("Location: index.php");
+    exit;
+}
+
+// Get book details
+$book = getVideoById($videoId);
+if (!$book) {
+    $_SESSION['alert'] = "Book not found.";
+} elseif (strtolower($book['status']) === 'archived') {
+    $_SESSION['alert'] = "This book is archived and cannot be rented.";
+} elseif ($book['stock'] <= 0) {
+    $_SESSION['alert'] = "This book is currently out of stock.";
+} elseif (!rentVideo($userId, $videoId)) {
+    $_SESSION['alert'] = "Borrow failed. You may have already rented 2 books.";
 } else {
-    $_SESSION['alert'] = "Unable to rent video. You may have already rented it or it's out of stock.";
+    $_SESSION['alert'] = "Book rented successfully!";
 }
 
 header("Location: index.php");

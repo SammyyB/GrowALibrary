@@ -14,8 +14,11 @@ if (isset($_GET['id'])) {
     </div>
     <div class="card-body">
         <p><strong>Title:</strong> <?php echo htmlspecialchars($video['title']); ?></p>
+        <p><strong>Book ID:</strong> <?= htmlspecialchars($video['book_id']) ?></p>
         <p><strong>Director:</strong> <?php echo htmlspecialchars($video['director']); ?></p>
-        <p><strong>Release Year:</strong> <?php echo htmlspecialchars($video['release_year']); ?></p>
+        <p><strong>Published On:</strong> 
+                        <?= isset($video['release_date']) ? date("F d, Y", strtotime($video['release_date'])) : 'N/A' ?>
+                    </p>
     </div>
     <div class="card-footer">
         <button type="button" class="btn btn-secondary" onclick="history.back();">Back</button>
