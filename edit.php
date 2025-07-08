@@ -1,6 +1,7 @@
 <?php
 require_once 'functions.php';
 require_once 'auth.php';
+require 'config.php';
 $require_admin = true;
 
 if (!isAdmin()) {
@@ -13,7 +14,7 @@ if (!isset($_GET['id'])) {
     exit;
 }
 
-$id = $_GET['id'];
+$id = intval($_GET['id']);
 $result = $conn->query("SELECT * FROM books WHERE id = $id");
 $book = $result->fetch_assoc();
 
@@ -30,13 +31,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $category = $_POST['category'];
     $status = $_POST['status'];
     $stock = $_POST['stock'];
+    $synopsis = $_POST['synopsis'];
 
-    $stmt = $conn->prepare("UPDATE books SET title = ?, author = ?, publish_year = ?, release_date = ?, category = ?, status = ?, stock = ? WHERE id = ?");
-    $stmt->bind_param("ssisssii", $title, $author, $publish_year, $release_date, $category, $status, $stock, $id);
+    // 📁 Handle cover upload
+    $coverPath = $book['cover_path']; // keep current cover unless changed
+    if (isset($_FILES['cover']) && $_FILES['cover']['error'] === UPLOAD_ERR_OK) {
+        $uploadDir = 'uploads/';
+        $fileTmp = $_FILES['cover']['tmp_name'];
+        $fileName = basename($_FILES['cover']['name']);
+        $fileExt = pathinfo($fileName, PATHINFO_EXTENSION);
+        $newFileName = uniqid('cover_', true) . '.' . $fileExt;
+        $fullPath = $uploadDir . $newFileName;
+
+        if (move_uploaded_file($fileTmp, $fullPath)) {
+            $coverPath = $fullPath;
+        }
+    }
+
+    // 🔁 Update query including synopsis and cover
+    $stmt = $conn->prepare("UPDATE books SET title = ?, author = ?, publish_year = ?, release_date = ?, category = ?, status = ?, stock = ?, synopsis = ?, cover_path = ? WHERE id = ?");
+    $stmt->bind_param("ssisssisss", $title, $author, $publish_year, $release_date, $category, $status, $stock, $synopsis, $coverPath, $id);
 
     if ($stmt->execute()) {
         echo '<div class="alert alert-success">Book updated successfully.</div>';
-        // Reload updated info
         $result = $conn->query("SELECT * FROM books WHERE id = $id");
         $book = $result->fetch_assoc();
     } else {
@@ -49,7 +66,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="card-header">
         <h3 class="card-title">Edit Book</h3>
     </div>
-    <form action="index.php?page=edit&id=<?= $book['id'] ?>" method="post">
+    <form action="index.php?page=edit&id=<?= $book['id'] ?>" method="post" enctype="multipart/form-data">
         <div class="card-body">
             <div class="form-group">
                 <label>Title</label>
@@ -78,10 +95,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <label>Stock</label>
                 <input type="number" class="form-control" name="stock" min="0" value="<?= htmlspecialchars($book['stock']) ?>" required>
             </div>
+            <div class="form-group">
+                <label>Synopsis</label>
+                <textarea class="form-control" name="synopsis" rows="4"><?= htmlspecialchars($book['synopsis']) ?></textarea>
+            </div>
+            <div class="form-group">
+                <label>Book Cover (Optional)</label>
+                <input type="file" class="form-control" name="cover" accept="image/*">
+                <?php if (!empty($book['cover_path']) && file_exists($book['cover_path'])): ?>
+                    <p class="mt-2"><img src="<?= htmlspecialchars($book['cover_path']) ?>" style="height: 100px;" alt="Current Cover"></p>
+                <?php else: ?>
+                    <p class="text-muted mt-2">No cover currently uploaded.</p>
+                <?php endif; ?>
+            </div>
         </div>
         <div class="card-footer">
             <button type="submit" class="btn btn-info">Update Book</button>
-            <button type="button" class="btn btn-default" onclick="window.location.href='index.php?page=view';">Cancel</button>
+            <button type="button" class="btn btn-default" onclick="window.location.href='index.php';">Cancel</button>
         </div>
     </form>
 </div>
+

@@ -21,7 +21,6 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 $page = $_GET['page'] ?? '';
-
 $userId = $_SESSION['user_id'] ?? null;
 ?>
 
@@ -55,26 +54,47 @@ $userId = $_SESSION['user_id'] ?? null;
                     case 'view_single':
                         include 'view_single.php';
                         break;
-
                     default:
                         echo '<h2>All Books</h2>';
                         echo '<table class="table table-bordered">';
                         echo '<thead><tr>';
-                        echo '<th>Title</th><th>Author</th><th>Release Year</th>';
+                        echo '<th>Book Cover</th><th>Title</th><th>Synopsis</th><th>Author</th><th>Release Year</th>';
+
                         if (isCustomer()) {
                             echo '<th>Stock</th><th>Action</th><th>Book ID</th><th>Status</th>';
                         } else {
                             echo '<th>Actions</th><th>Stock</th><th>Book ID</th><th>Status</th>';
                         }
+
                         echo '</tr></thead><tbody>';
 
-                        $books = getBooks();
+                        $books = getBooks(); // make sure this fetches 'synopsis' and 'cover_path'
+
                         foreach ($books as $book) {
                             echo '<tr>';
+
+                            // Book Cover
+                            echo '<td>';
+                            if (!empty($book['cover_path']) && file_exists($book['cover_path'])) {
+                                echo '<img src="' . htmlspecialchars($book['cover_path']) . '" alt="Cover" style="height: 80px;">';
+                            } else {
+                                echo '<span class="text-muted">No cover</span>';
+                            }
+                            echo '</td>';
+
+                            // Title
                             echo '<td>' . htmlspecialchars($book['title']) . '</td>';
+
+                            // Synopsis
+                            echo '<td>' . (!empty($book['synopsis']) ? htmlspecialchars($book['synopsis']) : '<i>No synopsis</i>') . '</td>';
+
+                            // Author
                             echo '<td>' . htmlspecialchars($book['author']) . '</td>';
+
+                            // Release Year
                             echo '<td>' . $book['publish_year'] . '</td>';
 
+                            // Actions / Stock / Status
                             if (isCustomer()) {
                                 echo '<td>' . $book['stock'] . '</td>';
                                 echo '<td>';
@@ -97,6 +117,7 @@ $userId = $_SESSION['user_id'] ?? null;
 
                             echo '<td>' . htmlspecialchars($book['book_id']) . '</td>';
 
+                            // Status
                             if ($book['status'] === 'archived') {
                                 echo '<td><span class="badge bg-secondary">Archived</span></td>';
                             } elseif ($book['stock'] <= 0) {
@@ -107,8 +128,10 @@ $userId = $_SESSION['user_id'] ?? null;
 
                             echo '</tr>';
                         }
+
                         echo '</tbody></table>';
 
+                        // Borrowing History
                         echo '<hr><h4>Borrowing History</h4>';
                         echo '<table class="table table-striped">';
                         echo '<thead><tr><th>Username</th><th>Title</th><th>Borrow Date</th><th>Return Date</th><th>Status</th></tr></thead><tbody>';

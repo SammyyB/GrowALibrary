@@ -15,10 +15,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $status = $_POST['status'];
     $author = $_POST['author'];
     $stock = $_POST['stock'];
+    $synopsis = $_POST['synopsis'] ?? null;
 
     $publish_year = date("Y", strtotime($release_date));
 
-    // Generate Book ID: e.g. THFEB102022-FIC00001
+    // Generate Book ID
     $firstLetters = strtoupper(substr($title, 0, 2));
     $month = strtoupper(date("M", strtotime($release_date)));
     $day = date("d");
@@ -29,9 +30,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $count = $result->fetch_assoc()['count'] + 1;
     $bookId = "{$firstLetters}{$month}{$day}{$year}-{$categoryCode}" . str_pad($count, 5, "0", STR_PAD_LEFT);
 
-    // Insert new book/book with release_date
-    $stmt = $conn->prepare("INSERT INTO books (book_id, title, author, publish_year, release_date, stock, category, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("sssssiss", $bookId, $title, $author, $publish_year, $release_date, $stock, $category, $status);
+    // Handle Book Cover Upload
+    $coverPath = null;
+    if (isset($_FILES['cover']) && $_FILES['cover']['error'] === UPLOAD_ERR_OK) {
+        $uploadDir = 'uploads/';
+        $fileTmp = $_FILES['cover']['tmp_name'];
+        $fileName = basename($_FILES['cover']['name']);
+        $fileExt = pathinfo($fileName, PATHINFO_EXTENSION);
+        $newFileName = uniqid('cover_', true) . '.' . $fileExt;
+        $fullPath = $uploadDir . $newFileName;
+
+        if (move_uploaded_file($fileTmp, $fullPath)) {
+            $coverPath = $fullPath;
+        }
+    }
+
+    // Insert into database with synopsis
+    $stmt = $conn->prepare("INSERT INTO books (book_id, title, author, publish_year, release_date, stock, category, status, cover_path, synopsis) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("sssssissss", $bookId, $title, $author, $publish_year, $release_date, $stock, $category, $status, $coverPath, $synopsis);
 
     if ($stmt->execute()) {
         echo '<div class="alert alert-success">Book added successfully.</div>';
@@ -41,11 +57,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 }
 ?>
 
+<!-- 🧾 HTML Form -->
 <div class="card card-primary">
     <div class="card-header">
         <h3 class="card-title">Add New Book</h3>
     </div>
-    <form action="index.php?page=add" method="post">
+    <form action="index.php?page=add" method="post" enctype="multipart/form-data">
         <div class="card-body">
             <div class="form-group">
                 <label for="title">Title</label>
@@ -74,9 +91,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <label for="stock">Stock</label>
                 <input type="number" class="form-control" name="stock" min="1" required>
             </div>
+            <div class="form-group">
+                <label for="synopsis">Book Synopsis</label>
+                <textarea name="synopsis" class="form-control" rows="4" placeholder="Enter a brief synopsis of the book..."></textarea>
+            </div>
+            <div class="form-group">
+                <label for="cover">Book Cover (Optional)</label>
+                <input type="file" class="form-control" name="cover" accept="image/*">
+            </div>
         </div>
         <div class="card-footer">
             <button type="submit" class="btn btn-primary">Add Book</button>
         </div>
     </form>
 </div>
+
