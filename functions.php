@@ -3,119 +3,130 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-// 📌 1. DATABASE CONNECTION
+
 $host = 'localhost';
-$db   = 'rental_db';  // Change to your actual DB name
+$db   = 'rental_db'; 
 $user = 'root';
-$pass = '';  // Change if your MySQL has a password
+$pass = ''; 
 
 $conn = new mysqli($host, $user, $pass, $db);
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// 📌 2. ADD A VIDEO
-function addVideo($title, $director, $release_year, $stock) {
+function addBook($title, $author, $publish_year, $stock) {
     global $conn;
-    $stmt = $conn->prepare("INSERT INTO videos (title, director, release_year, stock) VALUES (?, ?, ?, ?)");
-    $stmt->bind_param("ssii", $title, $director, $release_year, $stock);
+    $stmt = $conn->prepare("INSERT INTO books (title, author, publish_year, stock) VALUES (?, ?, ?, ?)");
+    $stmt->bind_param("ssii", $title, $author, $publish_year, $stock);
     return $stmt->execute();
 }
 
-// 📌 3. GET ALL VIDEOS
-function getVideos() {
+function getBooks() {
     global $conn;
-    $result = $conn->query("SELECT * FROM videos");
+    $result = $conn->query("SELECT * FROM books");
     return $result->fetch_all(MYSQLI_ASSOC);
 }
 
-// 📌 4. GET SINGLE VIDEO
-function getVideoById($id) {
+function getBookById($id) {
     global $conn;
-    $stmt = $conn->prepare("SELECT * FROM videos WHERE id = ?");
+    $stmt = $conn->prepare("SELECT * FROM books WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
     $result = $stmt->get_result();
     return $result->fetch_assoc();
 }
 
-// 📌 5. EDIT A VIDEO
-function editVideo($id, $title, $director, $release_year, $stock) {
+function editBook($id, $title, $author, $publish_year, $stock) {
     global $conn;
-    $stmt = $conn->prepare("UPDATE videos SET title = ?, director = ?, release_year = ?, stock = ? WHERE id = ?");
-    $stmt->bind_param("ssiii", $title, $director, $release_year, $stock, $id);
+    $stmt = $conn->prepare("UPDATE books SET title = ?, author = ?, publish_year = ?, stock = ? WHERE id = ?");
+    $stmt->bind_param("ssiii", $title, $author, $publish_year, $stock, $id);
     return $stmt->execute();
 }
 
-// 📌 6. DELETE A VIDEO
-function deleteVideo($id) {
+function deleteBook($id) {
     global $conn;
-    $stmt = $conn->prepare("DELETE FROM videos WHERE id = ?");
+    $stmt = $conn->prepare("DELETE FROM books WHERE id = ?");
     $stmt->bind_param("i", $id);
     return $stmt->execute();
 }
 
-// 📌 7. RENT A VIDEO
-function rentVideo($user_id, $video_id) {
+function borrowBook($user_id, $book_id) {
     global $conn;
 
-    // Check number of active rentals
-    $stmtActive = $conn->prepare("SELECT COUNT(*) as active FROM rentals WHERE user_id = ? AND return_date IS NULL");
-    $stmtActive->bind_param("i", $user_id);
-    $stmtActive->execute();
-    $result = $stmtActive->get_result()->fetch_assoc();
-    if ($result['active'] >= 2) {
-        return false; // Cannot borrow more than 2 books
+    if (!isset($_SESSION['user_id']) || !isCustomer()) {
+        return "Access denied. Please log in as a customer.";
     }
 
-    // Check book status and stock
-    $video = getVideoById($video_id);
-    if (!$video || $video['stock'] <= 0 || strtolower($video['status']) === 'archived') {
-        return false;
+    if (empty($book_id)) {
+        return "No book selected.";
     }
 
+    if (hasBorrowed($book_id, $user_id)) {
+        return "You already borrowed this book and haven't returned it yet.";
+    }
+
+    $stmt = $conn->prepare("SELECT COUNT(*) as active FROM borrowals WHERE user_id = ? AND return_date IS NULL");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $activeCount = $stmt->get_result()->fetch_assoc()['active'];
+    if ($activeCount >= 2) {
+        return "Borrow limit reached. You can only borrow 2 books at a time.";
+    }
+
+    $book = getBookById($book_id);
+    if (!$book) {
+        return "Book not found.";
+    }
+
+    if (strtolower($book['status']) === 'archived') {
+        return "This book is archived and cannot be borrowed.";
+    }
+
+    if ($book['stock'] <= 0) {
+        return "This book is curborrowly out of stock.";
+    }
+
+    $dueDate = date('Y-m-d', strtotime('+7 days'));
     $conn->begin_transaction();
-    try {
-        $stmt1 = $conn->prepare("INSERT INTO rentals (user_id, video_id, rent_date, due_date) VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY))");
-        $stmt1->bind_param("ii", $user_id, $video_id);
-        $stmt1->execute();
 
-        $stmt2 = $conn->prepare("UPDATE videos SET stock = stock - 1 WHERE id = ?");
-        $stmt2->bind_param("i", $video_id);
-        $stmt2->execute();
+    try {
+        $stmtInsert = $conn->prepare("INSERT INTO borrowals (user_id, book_id, borrow_date, due_date) VALUES (?, ?, NOW(), ?)");
+        $stmtInsert->bind_param("iis", $user_id, $book_id, $dueDate);
+        $stmtInsert->execute();
+
+        $stmtUpdate = $conn->prepare("UPDATE books SET stock = stock - 1 WHERE id = ?");
+        $stmtUpdate->bind_param("i", $book_id);
+        $stmtUpdate->execute();
 
         $conn->commit();
-        return true;
+        return "Book borrowed successfully! Due on $dueDate.";
     } catch (Exception $e) {
         $conn->rollback();
-        return false;
+        return "Borrow failed. Please try again.";
     }
 }
 
-// 📌 8. RETURN A VIDEO
-function returnVideo($rental_id) {
+function returnBook($borrowal_id) {
     global $conn;
 
-    // Get rental
-    $stmt = $conn->prepare("SELECT video_id FROM rentals WHERE id = ? AND return_date IS NULL");
-    $stmt->bind_param("i", $rental_id);
+    $stmt = $conn->prepare("SELECT book_id FROM borrowals WHERE id = ? AND return_date IS NULL");
+    $stmt->bind_param("i", $borrowal_id);
     $stmt->execute();
     $result = $stmt->get_result();
-    $rental = $result->fetch_assoc();
+    $borrowal = $result->fetch_assoc();
 
-    if (!$rental) return false;
+    if (!$borrowal) return false;
 
-    $video_id = $rental['video_id'];
+    $book_id = $borrowal['book_id'];
 
-    // Update return date and stock
     $conn->begin_transaction();
     try {
-        $stmt1 = $conn->prepare("UPDATE rentals SET return_date = NOW() WHERE id = ?");
-        $stmt1->bind_param("i", $rental_id);
+        $stmt1 = $conn->prepare("UPDATE borrowals SET return_date = NOW() WHERE id = ?");
+        $stmt1->bind_param("i", $borrowal_id);
         $stmt1->execute();
 
-        $stmt2 = $conn->prepare("UPDATE videos SET stock = stock + 1 WHERE id = ?");
-        $stmt2->bind_param("i", $video_id);
+        $stmt2 = $conn->prepare("UPDATE books SET stock = stock + 1 WHERE id = ?");
+        $stmt2->bind_param("i", $book_id);
         $stmt2->execute();
 
         $conn->commit();
@@ -126,15 +137,14 @@ function returnVideo($rental_id) {
     }
 }
 
-// 📌 9. GET USER RENTAL HISTORY
-function getRentalHistory($user_id) {
+function getBorrowalHistory($user_id) {
     global $conn;
     $stmt = $conn->prepare("
-        SELECT r.id, v.title, r.rent_date, r.return_date, r.due_date
-        FROM rentals r
-        JOIN videos v ON r.video_id = v.id
+        SELECT r.id, v.title, r.borrow_date, r.return_date, r.due_date
+        FROM borrowals r
+        JOIN books v ON r.book_id = v.id
         WHERE r.user_id = ?
-        ORDER BY r.rent_date DESC
+        ORDER BY r.borrow_date DESC
     ");
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
@@ -152,7 +162,6 @@ function usernameExists($username) {
     return $stmt->num_rows > 0;
 }
 
-// REGISTER USER
 function registerUser($username, $password, $role = 'customer') {
     global $conn;
     $hashed = password_hash($password, PASSWORD_DEFAULT);
@@ -168,11 +177,11 @@ function isCustomer() {
     return isset($_SESSION['user'], $_SESSION['role']) && $_SESSION['role'] === 'customer';
 }
 
-function hasRented($video_id, $user_id) {
+function hasBorrowed($book_id, $user_id) {
     global $conn;
 
-    $stmt = $conn->prepare("SELECT * FROM rentals WHERE video_id = ? AND user_id = ? AND return_date IS NULL");
-    $stmt->bind_param("ii", $video_id, $user_id);
+    $stmt = $conn->prepare("SELECT * FROM borrowals WHERE book_id = ? AND user_id = ? AND return_date IS NULL");
+    $stmt->bind_param("ii", $book_id, $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
 
@@ -180,16 +189,16 @@ function hasRented($video_id, $user_id) {
 }
 
 
-function getRentalHistoryWithUsers() {
+function getBorrowalHistoryWithUsers() {
     global $conn;
 
     $query = "
-        SELECT r.id, u.username, v.title, r.rent_date, r.return_date,
+        SELECT r.id, u.username, v.title, r.borrow_date, r.return_date,
                CASE WHEN r.return_date IS NULL THEN 0 ELSE 1 END AS returned
-        FROM rentals r
+        FROM borrowals r
         JOIN users u ON r.user_id = u.id
-        JOIN videos v ON r.video_id = v.id
-        ORDER BY r.rent_date DESC
+        JOIN books v ON r.book_id = v.id
+        ORDER BY r.borrow_date DESC
     ";
 
     $result = $conn->query($query);
@@ -197,25 +206,25 @@ function getRentalHistoryWithUsers() {
 }
 
 
-function getCurrentRenters($video_id) {
+function getCurborrowBorrowers($book_id) {
     global $conn;
 
     $stmt = $conn->prepare("
         SELECT u.username
-        FROM rentals r
+        FROM borrowals r
         JOIN users u ON r.user_id = u.id
-        WHERE r.video_id = ? AND r.return_date IS NULL
+        WHERE r.book_id = ? AND r.return_date IS NULL
     ");
-    $stmt->bind_param("i", $video_id);
+    $stmt->bind_param("i", $book_id);
     $stmt->execute();
     $result = $stmt->get_result();
 
-    $renters = [];
+    $borrowers = [];
     while ($row = $result->fetch_assoc()) {
-        $renters[] = $row['username'];
+        $borrowers[] = $row['username'];
     }
 
-    return $renters;
+    return $borrowers;
 }
 
 function calculateFine($due_date, $return_date = null) {
@@ -225,8 +234,46 @@ function calculateFine($due_date, $return_date = null) {
     $interval = $due->diff($end);
     $daysLate = $interval->invert === 0 && $end > $due ? $interval->days : 0;
 
-    return $daysLate * 10; // ₱10 per day
+    return $daysLate * 10;
 }
 
+function applyPenalties() {
+    global $conn;
+    $today = date('Y-m-d');
+    $penaltyPerDay = 10;
+
+    $result = $conn->query("SELECT * FROM borrowals WHERE return_date IS NULL AND due_date < '$today'");
+    while ($row = $result->fetch_assoc()) {
+        $daysOverdue = (strtotime($today) - strtotime($row['due_date'])) / 86400;
+        $penalty = $daysOverdue * $penaltyPerDay;
+        $conn->query("UPDATE borrowals SET penalty_amount = $penalty WHERE id = {$row['id']}");
+    }
+}
+
+function checkReturnWarnings($userId) {
+    global $conn;
+    $today = date('Y-m-d');
+
+    $query = "SELECT b.title, r.due_date 
+              FROM borrowals r 
+              JOIN books b ON r.book_id = b.id 
+              WHERE r.user_id = ? AND r.return_date IS NULL";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    while ($row = $result->fetch_assoc()) {
+        $dueDate = $row['due_date'];
+        $daysLeft = (strtotime($dueDate) - strtotime($today)) / (60 * 60 * 24);
+        $title = htmlspecialchars($row['title']);
+
+        if ($daysLeft == 1) {
+            echo "<script>alert('Reminder: Your book \"$title\" is due tomorrow!');</script>";
+        } elseif ($daysLeft == 0) {
+            echo "<script>alert('Reminder: Your book \"$title\" is due today!');</script>";
+        }
+    }
+}
 
 ?>

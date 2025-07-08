@@ -5,6 +5,16 @@ if (session_status() == PHP_SESSION_NONE) {
 
 require 'functions.php';
 require 'config.php';
+applyPenalties();
+
+if (isset($_SESSION['alert'])) {
+    echo "<script>alert('" . addslashes($_SESSION['alert']) . "');</script>";
+    unset($_SESSION['alert']);
+}
+
+if (isCustomer() && isset($_SESSION['user_id'])) {
+    checkReturnWarnings($_SESSION['user_id']);
+}
 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -19,7 +29,7 @@ $userId = $_SESSION['user_id'] ?? null;
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Video Rental System</title>
+    <title>Library Management System</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2.0/dist/css/adminlte.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <link rel="stylesheet" href="styles.css">
@@ -47,10 +57,10 @@ $userId = $_SESSION['user_id'] ?? null;
                         break;
 
                     default:
-                        echo '<h2>All Videos</h2>';
+                        echo '<h2>All Books</h2>';
                         echo '<table class="table table-bordered">';
                         echo '<thead><tr>';
-                        echo '<th>Title</th><th>Director</th><th>Release Year</th>';
+                        echo '<th>Title</th><th>Author</th><th>Release Year</th>';
                         if (isCustomer()) {
                             echo '<th>Stock</th><th>Action</th><th>Book ID</th><th>Status</th>';
                         } else {
@@ -58,38 +68,38 @@ $userId = $_SESSION['user_id'] ?? null;
                         }
                         echo '</tr></thead><tbody>';
 
-                        $videos = getVideos();
-                        foreach ($videos as $video) {
+                        $books = getBooks();
+                        foreach ($books as $book) {
                             echo '<tr>';
-                            echo '<td>' . htmlspecialchars($video['title']) . '</td>';
-                            echo '<td>' . htmlspecialchars($video['director']) . '</td>';
-                            echo '<td>' . $video['release_year'] . '</td>';
+                            echo '<td>' . htmlspecialchars($book['title']) . '</td>';
+                            echo '<td>' . htmlspecialchars($book['author']) . '</td>';
+                            echo '<td>' . $book['publish_year'] . '</td>';
 
                             if (isCustomer()) {
-                                echo '<td>' . $video['stock'] . '</td>';
+                                echo '<td>' . $book['stock'] . '</td>';
                                 echo '<td>';
-                                if (hasRented($video['id'], $userId)) {
-                                    echo '<a href="return.php?id=' . $video['id'] . '" class="btn btn-warning btn-sm">Return</a>';
-                                } elseif ($video['stock'] > 0 && $video['status'] !== 'archived') {
-                                    echo '<a href="rent.php?id=' . $video['id'] . '" class="btn btn-success btn-sm">Rent</a>';
+                                if (hasBorrowed($book['id'], $userId)) {
+                                    echo '<a href="return.php?id=' . $book['id'] . '" class="btn btn-warning btn-sm">Return</a>';
+                                } elseif ($book['stock'] > 0 && $book['status'] !== 'archived') {
+                                    echo '<a href="borrow.php?id=' . $book['id'] . '" class="btn btn-success btn-sm">Borrow</a>';
                                 } else {
                                     echo '<span class="text-danger">Unavailable</span>';
                                 }
                                 echo '</td>';
                             } else {
                                 echo '<td>';
-                                echo '<a href="index.php?page=edit&id=' . $video['id'] . '" class="btn btn-warning btn-sm">Edit</a> ';
-                                echo '<a href="index.php?page=delete&id=' . $video['id'] . '" class="btn btn-danger btn-sm">Delete</a> ';
-                                echo '<a href="index.php?page=view_single&id=' . $video['id'] . '" class="btn btn-info btn-sm">View</a>';
+                                echo '<a href="index.php?page=edit&id=' . $book['id'] . '" class="btn btn-warning btn-sm">Edit</a> ';
+                                echo '<a href="index.php?page=delete&id=' . $book['id'] . '" class="btn btn-danger btn-sm">Delete</a> ';
+                                echo '<a href="index.php?page=view_single&id=' . $book['id'] . '" class="btn btn-info btn-sm">View</a>';
                                 echo '</td>';
-                                echo '<td>' . htmlspecialchars($video['stock']) . '</td>';
+                                echo '<td>' . htmlspecialchars($book['stock']) . '</td>';
                             }
 
-                            echo '<td>' . htmlspecialchars($video['book_id']) . '</td>';
+                            echo '<td>' . htmlspecialchars($book['book_id']) . '</td>';
 
-                            if ($video['status'] === 'archived') {
+                            if ($book['status'] === 'archived') {
                                 echo '<td><span class="badge bg-secondary">Archived</span></td>';
-                            } elseif ($video['stock'] <= 0) {
+                            } elseif ($book['stock'] <= 0) {
                                 echo '<td><span class="badge bg-danger">Out of Stock</span></td>';
                             } else {
                                 echo '<td><span class="badge bg-success">Available</span></td>';
@@ -99,23 +109,23 @@ $userId = $_SESSION['user_id'] ?? null;
                         }
                         echo '</tbody></table>';
 
-                        echo '<hr><h4>Rental History</h4>';
+                        echo '<hr><h4>Borrowing History</h4>';
                         echo '<table class="table table-striped">';
-                        echo '<thead><tr><th>Username</th><th>Title</th><th>Rent Date</th><th>Return Date</th><th>Status</th></tr></thead><tbody>';
+                        echo '<thead><tr><th>Username</th><th>Title</th><th>Borrow Date</th><th>Return Date</th><th>Status</th></tr></thead><tbody>';
 
-                        $rentalHistory = getRentalHistoryWithUsers();
-                        if (count($rentalHistory) > 0) {
-                            foreach ($rentalHistory as $rental) {
+                        $borrowalHistory = getBorrowalHistoryWithUsers();
+                        if (count($borrowalHistory) > 0) {
+                            foreach ($borrowalHistory as $borrowal) {
                                 echo '<tr>';
-                                echo '<td>' . htmlspecialchars($rental['username']) . '</td>';
-                                echo '<td>' . htmlspecialchars($rental['title']) . '</td>';
-                                echo '<td>' . htmlspecialchars($rental['rent_date']) . '</td>';
-                                echo '<td>' . ($rental['return_date'] ? htmlspecialchars($rental['return_date']) : '-') . '</td>';
-                                echo '<td>' . ($rental['returned'] ? '<span class="badge bg-success">Returned</span>' : '<span class="badge bg-warning">Not Returned</span>') . '</td>';
+                                echo '<td>' . htmlspecialchars($borrowal['username']) . '</td>';
+                                echo '<td>' . htmlspecialchars($borrowal['title']) . '</td>';
+                                echo '<td>' . htmlspecialchars($borrowal['borrow_date']) . '</td>';
+                                echo '<td>' . ($borrowal['return_date'] ? htmlspecialchars($borrowal['return_date']) : '-') . '</td>';
+                                echo '<td>' . ($borrowal['returned'] ? '<span class="badge bg-success">Returned</span>' : '<span class="badge bg-warning">Not Returned</span>') . '</td>';
                                 echo '</tr>';
                             }
                         } else {
-                            echo '<tr><td colspan="5" class="text-center">No rental history.</td></tr>';
+                            echo '<tr><td colspan="5" class="text-center">No borrowal history.</td></tr>';
                         }
 
                         echo '</tbody></table>';
@@ -125,14 +135,6 @@ $userId = $_SESSION['user_id'] ?? null;
             </div>
         </section>
     </div>
-
-    <footer class="main-footer">
-        <strong>&copy; 2023 Your Company.</strong> All rights reserved.
-        <div class="float-right d-none d-sm-inline-block">
-            <b>Version</b> 3.2.0
-        </div>
-    </footer>
-</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2.0/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>

@@ -8,7 +8,7 @@ if (session_status() == PHP_SESSION_NONE) {
 <aside class="main-sidebar sidebar-dark-primary elevation-4">
     <!-- Brand Logo -->
     <a href="index.php" class="brand-link">
-        <span class="brand-text font-weight-light">Video Rental</span>
+        <span class="brand-text font-weight-light">Book Borrowal</span>
     </a>
 
     <!-- Sidebar -->
@@ -19,13 +19,13 @@ if (session_status() == PHP_SESSION_NONE) {
                 <li class="nav-item">
                     <a href="index.php?page=add" class="nav-link">
                         <i class="nav-icon fas fa-plus-square"></i>
-                        <p>Add Video</p>
+                        <p>Add Book</p>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a href="index.php?page=view" class="nav-link">
-                        <i class="nav-icon fas fa-video"></i>
-                        <p>View All Videos</p>
+                        <i class="nav-icon fas fa-book"></i>
+                        <p>View All Books</p>
                     </a>
                 </li>
                 <!-- Logout Link -->

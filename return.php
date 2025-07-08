@@ -9,32 +9,32 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $user_id = $_SESSION['user_id'];
-$video_id = $_GET['id'] ?? null;
+$book_id = $_GET['id'] ?? null;
 
-if (!$video_id) {
-    echo "<div class='alert alert-danger'>Invalid video ID.</div>";
+if (!$book_id) {
+    echo "<div class='alert alert-danger'>Invalid book ID.</div>";
     exit;
 }
 
-// Get the active rental ID for this user and video
-$stmt = $conn->prepare("SELECT id FROM rentals WHERE video_id = ? AND user_id = ? AND return_date IS NULL LIMIT 1");
-$stmt->bind_param("ii", $video_id, $user_id);
+// Get the active borrowal ID for this user and book
+$stmt = $conn->prepare("SELECT id FROM borrowals WHERE book_id = ? AND user_id = ? AND return_date IS NULL LIMIT 1");
+$stmt->bind_param("ii", $book_id, $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
-$rental = $result->fetch_assoc();
+$borrowal = $result->fetch_assoc();
 
-if (!$rental) {
-    echo "<div class='alert alert-danger'>You haven't rented this video or it's already returned.</div>";
+if (!$borrowal) {
+    echo "<div class='alert alert-danger'>You haven't borrowed this book or it's already returned.</div>";
     exit;
 }
 
-$rental_id = $rental['id'];
+$borrowal_id = $borrowal['id'];
 
-if (returnVideo($rental_id)) {
-    $_SESSION['alert'] = "Video returned successfully.";
-    header("Location: rental_history.php");
+if (returnBook($borrowal_id)) {
+    $_SESSION['alert'] = "Book returned successfully.";
+    header("Location: borrowal_history.php");
     exit;
 } else {
-    echo "<div class='alert alert-danger'>Failed to return video.</div>";
+    echo "<div class='alert alert-danger'>Failed to return book.</div>";
 }
 ?>

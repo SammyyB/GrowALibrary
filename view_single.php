@@ -5,19 +5,19 @@ if (session_status() == PHP_SESSION_NONE) {
 }
 
 if (isset($_GET['id'])) {
-    $video = getVideoById($_GET['id']);
-    if ($video !== null) {
+    $book = getBookById($_GET['id']);
+    if ($book !== null) {
 ?>
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">Video Details</h3>
+        <h3 class="card-title">Book Details</h3>
     </div>
     <div class="card-body">
-        <p><strong>Title:</strong> <?php echo htmlspecialchars($video['title']); ?></p>
-        <p><strong>Book ID:</strong> <?= htmlspecialchars($video['book_id']) ?></p>
-        <p><strong>Director:</strong> <?php echo htmlspecialchars($video['director']); ?></p>
+        <p><strong>Title:</strong> <?php echo htmlspecialchars($book['title']); ?></p>
+        <p><strong>Book ID:</strong> <?= htmlspecialchars($book['book_id']) ?></p>
+        <p><strong>Author:</strong> <?php echo htmlspecialchars($book['author']); ?></p>
         <p><strong>Published On:</strong> 
-                        <?= isset($video['release_date']) ? date("F d, Y", strtotime($video['release_date'])) : 'N/A' ?>
+                        <?= isset($book['release_date']) ? date("F d, Y", strtotime($book['release_date'])) : 'N/A' ?>
                     </p>
     </div>
     <div class="card-footer">
@@ -26,9 +26,9 @@ if (isset($_GET['id'])) {
 </div>
 <?php
     } else {
-        echo '<div class="alert alert-warning">Video not found.</div>';
+        echo '<div class="alert alert-warning">Book not found.</div>';
     }
 } else {
-    echo '<div class="alert alert-danger">No video ID specified.</div>';
+    echo '<div class="alert alert-danger">No book ID specified.</div>';
 }
 ?>

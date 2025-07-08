@@ -9,36 +9,36 @@ if (!isAdmin()) {
 }
 
 if (!isset($_GET['id'])) {
-    echo "<div class='alert alert-danger'>No video ID specified.</div>";
+    echo "<div class='alert alert-danger'>No book ID specified.</div>";
     exit;
 }
 
 $id = $_GET['id'];
-$result = $conn->query("SELECT * FROM videos WHERE id = $id");
-$video = $result->fetch_assoc();
+$result = $conn->query("SELECT * FROM books WHERE id = $id");
+$book = $result->fetch_assoc();
 
-if (!$video) {
-    echo "<div class='alert alert-warning'>Video not found.</div>";
+if (!$book) {
+    echo "<div class='alert alert-warning'>Book not found.</div>";
     exit;
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $title = $_POST['title'];
-    $director = $_POST['director'];
+    $author = $_POST['author'];
     $release_date = $_POST['release_date'];
-    $release_year = date("Y", strtotime($release_date));
+    $publish_year = date("Y", strtotime($release_date));
     $category = $_POST['category'];
     $status = $_POST['status'];
     $stock = $_POST['stock'];
 
-    $stmt = $conn->prepare("UPDATE videos SET title = ?, director = ?, release_year = ?, release_date = ?, category = ?, status = ?, stock = ? WHERE id = ?");
-    $stmt->bind_param("ssisssii", $title, $director, $release_year, $release_date, $category, $status, $stock, $id);
+    $stmt = $conn->prepare("UPDATE books SET title = ?, author = ?, publish_year = ?, release_date = ?, category = ?, status = ?, stock = ? WHERE id = ?");
+    $stmt->bind_param("ssisssii", $title, $author, $publish_year, $release_date, $category, $status, $stock, $id);
 
     if ($stmt->execute()) {
         echo '<div class="alert alert-success">Book updated successfully.</div>';
         // Reload updated info
-        $result = $conn->query("SELECT * FROM videos WHERE id = $id");
-        $video = $result->fetch_assoc();
+        $result = $conn->query("SELECT * FROM books WHERE id = $id");
+        $book = $result->fetch_assoc();
     } else {
         echo '<div class="alert alert-danger">Error updating book: ' . $stmt->error . '</div>';
     }
@@ -49,34 +49,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="card-header">
         <h3 class="card-title">Edit Book</h3>
     </div>
-    <form action="index.php?page=edit&id=<?= $video['id'] ?>" method="post">
+    <form action="index.php?page=edit&id=<?= $book['id'] ?>" method="post">
         <div class="card-body">
             <div class="form-group">
                 <label>Title</label>
-                <input type="text" class="form-control" name="title" value="<?= htmlspecialchars($video['title']) ?>" required>
+                <input type="text" class="form-control" name="title" value="<?= htmlspecialchars($book['title']) ?>" required>
             </div>
             <div class="form-group">
-                <label>Author / Director</label>
-                <input type="text" class="form-control" name="director" value="<?= htmlspecialchars($video['director']) ?>" required>
+                <label>Author</label>
+                <input type="text" class="form-control" name="author" value="<?= htmlspecialchars($book['author']) ?>" required>
             </div>
             <div class="form-group">
                 <label>Published Date</label>
-                <input type="date" class="form-control" name="release_date" value="<?= htmlspecialchars($video['release_date']) ?>" required>
+                <input type="date" class="form-control" name="release_date" value="<?= htmlspecialchars($book['release_date']) ?>" required>
             </div>
             <div class="form-group">
                 <label>Category</label>
-                <input type="text" class="form-control" name="category" value="<?= htmlspecialchars($video['category']) ?>" required>
+                <input type="text" class="form-control" name="category" value="<?= htmlspecialchars($book['category']) ?>" required>
             </div>
             <div class="form-group">
                 <label>Status</label>
                 <select name="status" class="form-control" required>
-                    <option value="available" <?= $video['status'] === 'available' ? 'selected' : '' ?>>Available</option>
-                    <option value="archived" <?= $video['status'] === 'archived' ? 'selected' : '' ?>>Archived</option>
+                    <option value="available" <?= $book['status'] === 'available' ? 'selected' : '' ?>>Available</option>
+                    <option value="archived" <?= $book['status'] === 'archived' ? 'selected' : '' ?>>Archived</option>
                 </select>
             </div>
             <div class="form-group">
                 <label>Stock</label>
-                <input type="number" class="form-control" name="stock" min="0" value="<?= htmlspecialchars($video['stock']) ?>" required>
+                <input type="number" class="form-control" name="stock" min="0" value="<?= htmlspecialchars($book['stock']) ?>" required>
             </div>
         </div>
         <div class="card-footer">

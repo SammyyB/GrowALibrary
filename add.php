@@ -13,10 +13,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $release_date = $_POST['release_date'];
     $category = $_POST['category'];
     $status = $_POST['status'];
-    $director = $_POST['director'];
+    $author = $_POST['author'];
     $stock = $_POST['stock'];
 
-    $release_year = date("Y", strtotime($release_date));
+    $publish_year = date("Y", strtotime($release_date));
 
     // Generate Book ID: e.g. THFEB102022-FIC00001
     $firstLetters = strtoupper(substr($title, 0, 2));
@@ -25,13 +25,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $year = date("Y", strtotime($release_date));
     $categoryCode = strtoupper(substr($category, 0, 3));
 
-    $result = $conn->query("SELECT COUNT(*) as count FROM videos");
+    $result = $conn->query("SELECT COUNT(*) as count FROM books");
     $count = $result->fetch_assoc()['count'] + 1;
     $bookId = "{$firstLetters}{$month}{$day}{$year}-{$categoryCode}" . str_pad($count, 5, "0", STR_PAD_LEFT);
 
-    // Insert new video/book with release_date
-    $stmt = $conn->prepare("INSERT INTO videos (book_id, title, director, release_year, release_date, stock, category, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("sssssiss", $bookId, $title, $director, $release_year, $release_date, $stock, $category, $status);
+    // Insert new book/book with release_date
+    $stmt = $conn->prepare("INSERT INTO books (book_id, title, author, publish_year, release_date, stock, category, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("sssssiss", $bookId, $title, $author, $publish_year, $release_date, $stock, $category, $status);
 
     if ($stmt->execute()) {
         echo '<div class="alert alert-success">Book added successfully.</div>';
@@ -52,8 +52,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <input type="text" class="form-control" name="title" required>
             </div>
             <div class="form-group">
-                <label for="director">Author / Director</label>
-                <input type="text" class="form-control" name="director" required>
+                <label for="author">Author</label>
+                <input type="text" class="form-control" name="author" required>
             </div>
             <div class="form-group">
                 <label for="release_date">Published Date</label>
